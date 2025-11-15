@@ -1,7 +1,9 @@
 
-import { UplaodImage } from '@/actions/imageUplaod';
+
+import { UploadImage } from '@/actions/imageUplaod';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import axios from 'axios';
 import { Camera, CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import { useState, useRef } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View, Image, Platform } from 'react-native';
@@ -12,25 +14,41 @@ export default function Photo() {
     const [permission, requestPermission] = useCameraPermissions();
     const [photoUri, setPhotoUri] = useState<any | null>(null);
     const cameraRef = useRef<Camera | null>(null);
+    const [prediction, setPrediction] = useState<string | null>(null);
+    const [confidence, setConfidence] = useState<string | null>(null);
 
     function upload() {
-        const formData = new FormData();
         if (photoUri != null) {
-            const file = {
-                uri: Platform.OS === 'ios' ? photoUri.replace('file://', '') : photoUri,
-                type: 'image/jpeg', // Use the actual MIME type if different
-                name: 'image.jpg', // Use a meaningful name or infer from URI
-            };
-    
-            formData.append('image', file as any);
-            UplaodImage(formData, (res: any) => {
-                console.warn(res)
-            })
-
+            uploadImage(photoUri)
         }
-
-        console.warn("upload function")
     }
+
+    const uploadImage = async (uri: string) => {
+        try {
+            const formData = new FormData();
+
+            formData.append('image', {
+                uri: uri,           // from expo-image-picker
+                name: 'photo.jpg',  // can be any name
+                type: 'image/jpeg', // mime type
+            } as any); // <-- cast as any to bypass TS error
+
+            const res = await axios.post(
+                'http://192.168.8.141:8000/api/classifications/predict/',
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
+            );
+
+            setConfidence(res?.data?.confidence);
+            setPrediction(res?.data?.predicted_class)
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     if (!permission) {
         // Camera permissions are still loading.
@@ -50,7 +68,7 @@ export default function Photo() {
     async function takePhoto() {
         if (cameraRef.current) {
             try {
-                const {uri}   = await cameraRef.current.takePictureAsync({base64:true});
+                const { uri } = await cameraRef.current.takePictureAsync({ base64: true });
                 setPhotoUri(uri); // Save the photo URI to state
                 console.warn(uri)
             } catch (error) {
@@ -89,6 +107,23 @@ export default function Photo() {
                 </>
 
             )}
+
+
+            {
+                prediction && (<>
+                    <ThemedView>
+                        <ThemedText>Prediction : {prediction} </ThemedText>
+                    </ThemedView>
+                </>)
+            }
+
+            {
+                confidence && (<>
+                    <ThemedView>
+                        <ThemedText>Confidence : {confidence} </ThemedText>
+                    </ThemedView>
+                </>)
+            }
         </ThemedView>
     );
 }

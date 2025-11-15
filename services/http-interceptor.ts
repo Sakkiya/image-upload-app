@@ -9,7 +9,6 @@ class HttpInterceptor {
             headers: {
                 "Content-Type": props.ContentType,
                 "Accept": "application/json, multipart/form-data",
-                "Access-Control-Allow-Origin": "*",
                
             },
         };
@@ -44,6 +43,7 @@ class HttpInterceptor {
             (response) => response,
             (error) => {
                 if (!error.response) {
+                    console.log(error,"aaaaaaaaaaaaaaaaaaa");
                     console.log('[ERROR]', ' [HTTP Interceptor, Network Error', error);
                 } else {
                     console.log('[ERROR]', ' [HTTP Interceptor, The request was made and the server responded', error.response);

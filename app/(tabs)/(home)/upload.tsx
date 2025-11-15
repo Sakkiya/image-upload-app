@@ -1,10 +1,15 @@
-import { UplaodImage } from "@/actions/imageUplaod";
+import { UploadImage } from "@/actions/imageUplaod";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import axios from "axios";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { Alert, Button, Image, View } from "react-native";
 
 export default function Upload() {
   const [image, setImage] = useState<string | null>(null);
+  const [prediction, setPrediction] = useState<string | null>(null);
+  const [confidence, setConfidence] = useState<string | null>(null);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -22,21 +27,33 @@ export default function Upload() {
 
   const uploadImage = async (uri: string) => {
     try {
-      // Convert uri to a Blob/File
-      const file = await fetch(uri).then((res) => res.blob());
-
       const formData = new FormData();
-      formData.append("image", file as any); // YOUR LINE ADDED
 
-      // Call your API wrapper
-      UplaodImage(formData, (res: any) => {
-        console.warn("Upload Response:", res);
-      });
+      formData.append('image', {
+        uri: uri,           // from expo-image-picker
+        name: 'photo.jpg',  // can be any name
+        type: 'image/jpeg', // mime type
+      } as any); // <-- cast as any to bypass TS error
+
+      const res = await axios.post(
+        'http://192.168.8.141:8000/api/classifications/predict/',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      setConfidence(res?.data?.confidence);
+      setPrediction(res?.data?.predicted_class)
     } catch (err) {
       console.error(err);
-      Alert.alert("Upload Failed", String(err));
     }
   };
+
+
+
 
   return (
     <>
@@ -48,6 +65,22 @@ export default function Upload() {
             style={{ width: 200, height: 200, marginTop: 20 }}
           />
         )}
+
+        {
+          prediction && (<>
+            <ThemedView>
+              <ThemedText>Prediction : {prediction} </ThemedText>
+            </ThemedView>
+          </>)
+        }
+
+        {
+          confidence && (<>
+            <ThemedView>
+              <ThemedText>Confidence : {confidence} </ThemedText>
+            </ThemedView>
+          </>)
+        }
       </View>
     </>
   );
